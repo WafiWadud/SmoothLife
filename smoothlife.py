@@ -426,6 +426,72 @@ def save_animation():
     # ffmpeg -i smoothlife.mp4 -c:v libvpx -b:v 2M smoothlife.webm
 
 
+class InteractiveSmoothLife(SmoothLife):
+    def __init__(self, height, width):
+        super().__init__(height, width)
+        self.paused = False
+        self.cell_size = 10  # Size of cells to add on click
+
+    def toggle_pause(self):
+        self.paused = not self.paused
+
+    def reset(self):
+        self.clear()
+
+    def add_cells(self, row, col):
+        cell_positions = [
+            (row, col),  # Center
+            (row - self.cell_size, col),  # Top
+            (row + self.cell_size, col),  # Bottom
+            (row, col - self.cell_size),  # Left
+            (row, col + self.cell_size),  # Right
+        ]
+
+        for r, c in cell_positions:
+            r_start = max(0, r - self.cell_size // 2)
+            r_end = min(self.height, r + self.cell_size // 2)
+            c_start = max(0, c - self.cell_size // 2)
+            c_end = min(self.width, c + self.cell_size // 2)
+            self.field[r_start:r_end, c_start:c_end] = 1
+
+
+def show_interactive_animation():
+    w = 512
+    h = 512
+    sl = InteractiveSmoothLife(h, w)
+    sl.add_speckles()
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(
+        sl.field, animated=True, cmap=plt.get_cmap("viridis"), aspect="equal"
+    )
+
+    def animate(*args):
+        if not sl.paused:
+            im.set_array(sl.step())
+        return (im,)
+
+    def on_click(event):
+        if event.inaxes == ax:
+            col = int(event.xdata)
+            row = int(event.ydata)
+            sl.add_cells(row, col)
+
+    def on_key(event):
+        if event.key == " ":
+            sl.toggle_pause()
+        elif event.key == "r":
+            sl.reset()
+
+    fig.canvas.mpl_connect("button_press_event", on_click)
+    fig.canvas.mpl_connect("key_press_event", on_key)
+
+    ani = animation.FuncAnimation(fig, animate, interval=60, blit=True)
+
+    plt.title("Click to add cells. Space to pause/unpause. 'R' to reset.")
+    plt.show()
+
+
 if __name__ == "__main__":
-    show_animation()
+    show_interactive_animation()
     # save_animation()
